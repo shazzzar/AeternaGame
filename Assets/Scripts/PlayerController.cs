@@ -17,8 +17,21 @@ public class PlayerController : MonoBehaviour
     private Vector3 _input;
     private bool _isGrounded;
 
+    private MiningSystem _miningSystem;
+    private void Start()
+    {
+        _miningSystem = GetComponent<MiningSystem>();
+    }
+
     private void Update()
     {
+        if (_miningSystem != null && _miningSystem.isMining)
+        {
+            _input = Vector3.zero;
+            _animator.SetFloat("Speed", 0f); // Keep animator in Idle
+            return; // Stops Look() and GatherInput() from running
+        }
+
         CheckGround();
         GatherInput();
         Look();
@@ -27,6 +40,8 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (_miningSystem != null && _miningSystem.isMining) return;
+
         Move();
     }
 
