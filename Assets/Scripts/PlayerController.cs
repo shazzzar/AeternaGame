@@ -51,7 +51,7 @@ public class PlayerController : MonoBehaviour
 
         // Names must match your Animator parameters exactly
         _animator.SetBool("isGrounded", _isGrounded);
-        _animator.SetFloat("VerticalVelocity", _rb.velocity.y);
+        _animator.SetFloat("VerticalVelocity", _rb.linearVelocity.y);
         _animator.SetFloat("Speed", _input.magnitude);
     }
 
@@ -91,6 +91,6 @@ public class PlayerController : MonoBehaviour
         _animator.SetFloat("Speed", _input.magnitude);
 
         // Vertical velocity for the "Idle Jump" (falling/rising) animation state
-        _animator.SetFloat("VerticalVelocity", _rb.velocity.y);
+        _animator.SetFloat("VerticalVelocity", _rb.linearVelocity.y);
     }
 }
