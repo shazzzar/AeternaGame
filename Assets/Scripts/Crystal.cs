@@ -7,6 +7,7 @@ public enum CrystalRarity { Common, Uncommon, Rare, Epic, Mythic, Ancient, Legen
 
 public class Crystal : MonoBehaviour
 {
+    public Sprite itemIcon;
     public string crystalName;
     public CrystalRarity rarity;
     public float baseMineTime = 2f;
