@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -13,14 +14,38 @@ public class EnemyAI : MonoBehaviour
     private NavMeshAgent agent;
     private Animator anim;
 
+    [Header("Stats")]
+    public float health = 50f;
+
+    [Header("Visuals")]
+    [SerializeField] private Renderer _renderer;
+    [SerializeField] private Material _flashMaterial; // Drag your white/bright material here
+    [SerializeField] private float _flashDuration = 0.1f;
+
+    private Material _originalMaterial;
+    private Material[] _originalMaterials;
+    private Material[] _flashMaterials;
+    private Coroutine _flashRoutine;
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         anim = GetComponent<Animator>();
 
-        // Automatically find the player if not assigned
-        if (player == null)
-            player = GameObject.FindGameObjectWithTag("Player").transform;
+        if (_renderer == null) _renderer = GetComponentInChildren<Renderer>();
+
+        if (_renderer != null)
+        {
+            // 1. Store all 4 original materials
+            _originalMaterials = _renderer.materials;
+
+            // 2. Create an array of 4 flash materials to match
+            _flashMaterials = new Material[_originalMaterials.Length];
+            for (int i = 0; i < _flashMaterials.Length; i++)
+            {
+                _flashMaterials[i] = _flashMaterial;
+            }
+        }
     }
 
     void Update()
@@ -97,5 +122,30 @@ public class EnemyAI : MonoBehaviour
     public void EndAttack()
     {
         agent.isStopped = false;
+    }
+
+    public void TakeDamage(float amount)
+    {
+        health -= amount;
+
+        StopAllCoroutines();
+        StartCoroutine(FlashRoutine());
+
+        if (health <= 0) Destroy(gameObject);
+    }
+
+    private IEnumerator FlashRoutine()
+    {
+        if (_renderer == null || _flashMaterial == null) yield break;
+
+        // 3. Swap the entire array to flash
+        _renderer.materials = _flashMaterials;
+
+        yield return new WaitForSeconds(_flashDuration);
+
+        // 4. Swap back to the original array
+        _renderer.materials = _originalMaterials;
+
+        _flashRoutine = null;
     }
 }
