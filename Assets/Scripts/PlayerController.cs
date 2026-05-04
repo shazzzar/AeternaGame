@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -8,7 +8,7 @@ public class PlayerController : MonoBehaviour
     [Header("Movement")]
     [SerializeField] private Rigidbody _rb;
     [SerializeField] private Animator _animator;
-    [SerializeField] private float _speed = 5f;
+    public float speed = 5f;
     [SerializeField] private float _turnspeed = 360f;
 
     [Header("Jump Settings")]
@@ -21,9 +21,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Camera _camera;
     [SerializeField] private float _aimRotationSpeed = 15f;
     [SerializeField] private float _shootDistance = 100f;
-    [SerializeField] private float _damage = 10f;
-    [SerializeField] private float _fireRate = 0.5f;
-    [SerializeField] private LayerMask _shootMask = ~0;
+    public float damage = 10f;
+    public float fireRate = 0.5f;
+[SerializeField] private LayerMask _shootMask = ~0;
 
     [Header("UI & Cursor")]
     [SerializeField] private Texture2D _cursorTexture;
@@ -58,7 +58,9 @@ public class PlayerController : MonoBehaviour
 
         HandleWeaponToggle();
 
-        if (_hasGun && !InventorySlide.IsInventoryOpen)
+        bool isUIOpen = InventorySlide.IsInventoryOpen || (RoundManager.Instance != null && RoundManager.Instance.isShopPhase);
+
+        if (_hasGun && !isUIOpen)
         {
             ApplyWeaponCursor();
 
@@ -75,8 +77,13 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            if (!InventorySlide.IsInventoryOpen)
+            if (!isUIOpen)
             {
+                UpdateCursorState();
+            }
+            else
+            {
+                // Force state update when UI is open to ensure cursor is correct
                 UpdateCursorState();
             }
 
@@ -121,12 +128,12 @@ public class PlayerController : MonoBehaviour
 
         if (moveDirection.magnitude > 0)
         {
-            _rb.MovePosition(transform.position + moveDirection * _speed * Time.deltaTime);
+            _rb.MovePosition(transform.position + moveDirection * speed * Time.deltaTime);
         }
-    }
+        }
 
-    void Look()
-    {
+        void Look()
+        {
         if (_input != Vector3.zero)
         {
             Vector3 relative = (transform.position + _input.ToIso()) - transform.position;
@@ -138,10 +145,10 @@ public class PlayerController : MonoBehaviour
                 _turnspeed * Time.deltaTime
             );
         }
-    }
+        }
 
-    void RotateToMouse()
-    {
+        void RotateToMouse()
+        {
         if (_camera == null) return;
 
         Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
@@ -164,21 +171,27 @@ public class PlayerController : MonoBehaviour
                 );
             }
         }
-    }
+        }
 
-    void Animate()
-    {
+        void Animate()
+        {
         if (_animator == null) return;
 
         _animator.SetFloat("Speed", _input.magnitude);
         _animator.SetFloat("VerticalVelocity", _rb.linearVelocity.y);
         _animator.SetBool("HasGun", _hasGun);
-    }
+        }
 
-    void HandleWeaponToggle()
-    {
+        void HandleWeaponToggle()
+        {
         if (Input.GetKeyDown(KeyCode.Alpha2))
         {
+            if (!InventoryManager.Instance.HasWeapon())
+            {
+                Debug.Log("No weapon in inventory!");
+                return;
+            }
+
             _hasGun = !_hasGun;
             IsWeaponEquipped = _hasGun;
 
@@ -190,18 +203,18 @@ public class PlayerController : MonoBehaviour
 
             UpdateCursorState();
         }
-    }
+        }
 
-    void HandleShooting()
-    {
+        void HandleShooting()
+        {
         if (!_hasGun) return;
         if (InventorySlide.IsInventoryOpen) return;
 
         if (Input.GetMouseButton(0) && Time.time >= _nextFireTime)
         {
-            _nextFireTime = Time.time + _fireRate;
+            _nextFireTime = Time.time + fireRate;
 
-            float animSpeedMultiplier = 1f / _fireRate;
+            float animSpeedMultiplier = 1f / fireRate;
 
             if (_animator != null)
             {
@@ -211,10 +224,10 @@ public class PlayerController : MonoBehaviour
 
             ShootRayVisual();
         }
-    }
+        }
 
-    void ShootRayVisual()
-    {
+        void ShootRayVisual()
+        {
         if (_camera == null) return;
 
         Ray cameraRay = _camera.ScreenPointToRay(Input.mousePosition);
@@ -250,7 +263,7 @@ public class PlayerController : MonoBehaviour
 
             if (enemy != null)
             {
-                enemy.TakeDamage(_damage);
+                enemy.TakeDamage(damage);
                 Debug.Log("Direct hit on: " + hit.collider.name);
             }
         }
@@ -305,13 +318,25 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateCursorState()
     {
-        if (InventorySlide.IsInventoryOpen)
+        // 1. If in Shop Phase, show system cursor and do nothing else
+        if (RoundManager.Instance != null && RoundManager.Instance.isShopPhase)
         {
+            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             return;
         }
 
+        // 2. If Inventory is open, show system cursor
+        if (InventorySlide.IsInventoryOpen)
+        {
+            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            return;
+        }
+
+        // 3. Normal gameplay cursor
         if (_hasGun)
         {
             ApplyWeaponCursor();
