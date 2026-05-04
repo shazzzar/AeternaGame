@@ -14,7 +14,6 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     public bool isMaster = false;
     public InventorySlot masterSlot;
     
-    // Per-instance dimensions to avoid ScriptableObject corruption
     public int currentWidth = 1;
     public int currentHeight = 1;
     public bool isRotated = false;
@@ -43,7 +42,6 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             slotCanvas = gameObject.AddComponent<Canvas>();
         }
         
-        // Every Canvas needs a GraphicRaycaster on its root to receive events
         if (GetComponent<GraphicRaycaster>() == null)
         {
             gameObject.AddComponent<GraphicRaycaster>();
@@ -53,7 +51,6 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
         if (item != null && isMaster)
         {
-            // Only initialize from item data if dimensions seem uninitialized (both are 1 but item is larger)
             if (currentWidth == 1 && currentHeight == 1 && (item.width != 1 || item.height != 1))
             {
                 currentWidth = item.width;
@@ -162,7 +159,6 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             rect.pivot = new Vector2(0.5f / currentWidth, 0.5f / currentHeight);
             rect.anchoredPosition = Vector2.zero;
             
-            // Apply rotation
             rect.localRotation = isRotated ? Quaternion.Euler(0, 0, -90) : Quaternion.identity;
         }
         else
@@ -204,7 +200,7 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         {
             dragIcon.transform.position = Input.mousePosition;
 
-            if (Input.GetMouseButtonDown(1)) // Right click to rotate
+            if (Input.GetMouseButtonDown(1)) 
             {
                 int temp = dragStartWidth;
                 dragStartWidth = dragStartHeight;
@@ -221,7 +217,6 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
     public void OnDrag(PointerEventData eventData)
     {
-        // Handled in Update for better responsiveness, but interface requires implementation
     }
 
     public void OnEndDrag(PointerEventData eventData)
@@ -233,11 +228,9 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         {
             if (InventoryManager.Instance.CanPlaceAt(targetSlot.index, dragStartWidth, dragStartHeight))
             {
-                // Determine if it should be considered "rotated" based on dragStartWidth/Height compared to item.width/height
                 bool finalRotated = (dragStartWidth != dragStartItem.width);
                 if (dragStartItem.width == dragStartItem.height && dragIcon != null)
                 {
-                    // For square items, check the dragIcon rotation
                     float angle = dragIcon.GetComponent<RectTransform>().localRotation.eulerAngles.z;
                     finalRotated = (Mathf.Abs(angle % 180) > 45); 
                 }
@@ -267,7 +260,6 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
         if (!placed && dragStartItem != null)
         {
-            // Calculate if it was rotated
             bool wasRotated = (dragStartWidth != dragStartItem.width);
             InventoryManager.Instance.AddItemAmount(dragStartItem, dragStartRarity, dragStartAmount, dragStartWidth, dragStartHeight, wasRotated);
         }
@@ -278,7 +270,6 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             dragIcon = null;
         }
 
-        // Clear drag state
         dragStartItem = null;
         dragStartAmount = 0;
         dragStartWidth = 1;

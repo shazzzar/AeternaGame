@@ -32,10 +32,8 @@ public class InventorySlide : MonoBehaviour
         if (canvasGroup == null)
             canvasGroup = panel.gameObject.AddComponent<CanvasGroup>();
 
-        // A posi��o onde meteste o painel no Editor � a posi��o aberta
         visiblePos = panel.anchoredPosition;
 
-        // Posi��o escondida para a direita
         hiddenPos = visiblePos + new Vector2(hiddenOffsetX, 0f);
 
         open = false;
@@ -55,7 +53,7 @@ public class InventorySlide : MonoBehaviour
     {
         if (panel == null) return;
 
-        if (Input.GetKeyDown(KeyCode.I) && Time.timeScale > 0) // Only toggle while playing
+        if (Input.GetKeyDown(KeyCode.I) && Time.timeScale > 0) 
         {
             ToggleInventory(!open);
         }
@@ -68,7 +66,6 @@ public class InventorySlide : MonoBehaviour
             Time.unscaledDeltaTime * speed
         );
 
-        // Fade opcional
         canvasGroup.alpha = Mathf.Lerp(
             canvasGroup.alpha,
             open ? 1f : 0f,

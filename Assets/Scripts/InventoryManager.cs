@@ -49,8 +49,6 @@ public static InventoryManager Instance;
 
     private void ReLinkSubSlots()
     {
-        // Re-link sub-slots to masters without clearing items
-        // This is useful when the UI is re-enabled between rounds
         foreach (InventorySlot slot in slots)
         {
             if (slot != null && slot.isMaster && slot.item != null)
@@ -76,7 +74,6 @@ public static InventoryManager Instance;
     {
         List<InitialItemData> initialItems = new List<InitialItemData>();
 
-        // 1. Collect all items defined in the editor
         foreach (InventorySlot slot in slots)
         {
             if (slot != null && slot.item != null && (slot.isMaster || slot.masterSlot == null))
@@ -94,13 +91,11 @@ public static InventoryManager Instance;
             }
         }
 
-        // 2. Clear all slots to ensure CanPlaceAt works correctly
         foreach (InventorySlot slot in slots)
         {
             if (slot != null) slot.ClearSlot();
         }
 
-        // 3. Re-place items with proper sub-slot logic
         foreach (var data in initialItems)
         {
             if (CanPlaceAt(data.index, data.w, data.h))
@@ -147,13 +142,11 @@ public static InventoryManager Instance;
         int w = forcedW != -1 ? forcedW : item.width;
         int h = forcedH != -1 ? forcedH : item.height;
 
-        // 1. Try to stack in existing slots (only for 1x1 items)
         if (w == 1 && h == 1)
         {
             foreach (InventorySlot slot in slots)
             {
                 if (slot == null) continue;
-                // Only stack if it's the same item (ignoring rarity and instance specific suffixes)
                 if (!slot.IsEmpty() && slot.isMaster && slot.item != null && 
                     (slot.item == item || NormalizeItemName(slot.item.name) == normalizedTargetName))
                 {
@@ -166,7 +159,6 @@ public static InventoryManager Instance;
             }
         }
 
-        // 2. Find new space
         while (remaining > 0)
         {
             int foundIndex = FindEmptySpace(w, h);
@@ -190,11 +182,10 @@ public static InventoryManager Instance;
     public static string NormalizeItemName(string name)
     {
         if (string.IsNullOrEmpty(name)) return "";
-        // Aggressive normalization
         string normalized = name.Replace("(Clone)", "");
         normalized = normalized.Replace("Variant", "");
-        normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"\d", ""); // remove numbers
-        normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"[_\-\s]", ""); // remove spaces, underscores, hyphens
+        normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"\d", ""); 
+        normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"[_\-\s]", "");
         return normalized.Trim().ToLower();
     }
 
@@ -320,7 +311,6 @@ public static InventoryManager Instance;
         int h = master.currentHeight;
         bool rotated = master.isRotated;
 
-        // Try to place at toSlot
         if (CanPlaceAt(toSlot.index, w, h, master))
         {
             RemoveItem(master);
@@ -329,7 +319,6 @@ public static InventoryManager Instance;
             return true;
         }
 
-        // Try stacking
         InventorySlot targetMaster = toSlot.masterSlot;
         if (targetMaster != null && targetMaster != master && 
             targetMaster.item != null && 

@@ -83,7 +83,6 @@ public class PlayerController : MonoBehaviour
             }
             else
             {
-                // Force state update when UI is open to ensure cursor is correct
                 UpdateCursorState();
             }
 
@@ -318,7 +317,6 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateCursorState()
     {
-        // 1. If in Shop Phase, show system cursor and do nothing else
         if (RoundManager.Instance != null && RoundManager.Instance.isShopPhase)
         {
             Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
@@ -327,7 +325,6 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 2. If Inventory is open, show system cursor
         if (InventorySlide.IsInventoryOpen)
         {
             Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
@@ -336,7 +333,6 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 3. Normal gameplay cursor
         if (_hasGun)
         {
             ApplyWeaponCursor();
