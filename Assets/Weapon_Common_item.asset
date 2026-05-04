@@ -12,7 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0a4409437b3cdd499cac42c746801e1, type: 3}
   m_Name: Weapon_Common_item
   m_EditorClassIdentifier: Assembly-CSharp::Item
-  item_image: {fileID: 0}
+  item_image: {fileID: 21300000, guid: 8685b7f9dc222e349b713515d13b1c87, type: 3}
   value: 0
-  weight: 0
-  slot_size: 0
+  weight: 40
+  width: 2
+  height: 1
+  isWeapon: 1

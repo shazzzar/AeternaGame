@@ -24,7 +24,7 @@ public class InventorySlide : MonoBehaviour
 
         if (panel == null)
         {
-            Debug.LogError("InventorySlide: Panel não atribuído!");
+            Debug.LogError("InventorySlide: Panel nï¿½o atribuï¿½do!");
             return;
         }
 
@@ -32,10 +32,10 @@ public class InventorySlide : MonoBehaviour
         if (canvasGroup == null)
             canvasGroup = panel.gameObject.AddComponent<CanvasGroup>();
 
-        // A posição onde meteste o painel no Editor é a posição aberta
+        // A posiï¿½ï¿½o onde meteste o painel no Editor ï¿½ a posiï¿½ï¿½o aberta
         visiblePos = panel.anchoredPosition;
 
-        // Posição escondida para a direita
+        // Posiï¿½ï¿½o escondida para a direita
         hiddenPos = visiblePos + new Vector2(hiddenOffsetX, 0f);
 
         open = false;
@@ -55,15 +55,9 @@ public class InventorySlide : MonoBehaviour
     {
         if (panel == null) return;
 
-        if (Input.GetKeyDown(KeyCode.I))
+        if (Input.GetKeyDown(KeyCode.I) && Time.timeScale > 0) // Only toggle while playing
         {
-            open = !open;
-            IsInventoryOpen = open;
-
-            canvasGroup.interactable = open;
-            canvasGroup.blocksRaycasts = open;
-
-            UpdateCursorState();
+            ToggleInventory(!open);
         }
 
         Vector2 targetPos = open ? visiblePos : hiddenPos;
@@ -71,19 +65,30 @@ public class InventorySlide : MonoBehaviour
         panel.anchoredPosition = Vector2.Lerp(
             panel.anchoredPosition,
             targetPos,
-            Time.deltaTime * speed
+            Time.unscaledDeltaTime * speed
         );
 
         // Fade opcional
         canvasGroup.alpha = Mathf.Lerp(
             canvasGroup.alpha,
             open ? 1f : 0f,
-            Time.deltaTime * speed
+            Time.unscaledDeltaTime * speed
         );
     }
 
-    void UpdateCursorState()
+    public void ToggleInventory(bool state)
     {
+        open = state;
+        IsInventoryOpen = open;
+
+        canvasGroup.interactable = open;
+        canvasGroup.blocksRaycasts = open;
+
+        UpdateCursorState();
+    }
+
+    void UpdateCursorState()
+{
         if (open)
         {
             Cursor.lockState = CursorLockMode.None;

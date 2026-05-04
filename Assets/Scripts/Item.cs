@@ -11,5 +11,7 @@ public class Item : ScriptableObject
     public float weight;
 
     [Header("Inventory")]
-    public int slot_size;
-}
+    public int width = 1;
+    public int height = 1;
+    public bool isWeapon;
+    }

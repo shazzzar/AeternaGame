@@ -29,8 +29,19 @@ public class EnemyAI : MonoBehaviour
 
     void Start()
     {
+        if (player == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) player = p.transform;
+            else
+            {
+                PlayerController pc = Object.FindAnyObjectByType<PlayerController>();
+                if (pc != null) player = pc.transform;
+            }
+        }
+
         agent = GetComponent<NavMeshAgent>();
-        anim = GetComponent<Animator>();
+anim = GetComponent<Animator>();
 
         if (_renderer == null) _renderer = GetComponentInChildren<Renderer>();
 

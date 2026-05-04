@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f0a4409437b3cdd499cac42c746801e1, type: 3}
-  m_Name: Crystal_Common_Item
+  m_Name: Ruby
   m_EditorClassIdentifier: Assembly-CSharp::Item
-  item_image: {fileID: 21300000, guid: 6ae362ae0eb69bd40b1301d7d57df64a, type: 3}
-  value: 49
-  weight: 2
+  item_image: {fileID: 21300000, guid: 2602cf95e979e90449a9e509bb6a016d, type: 3}
+  value: 77
+  weight: 3
   width: 1
   height: 1
   isWeapon: 0

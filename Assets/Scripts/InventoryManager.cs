@@ -1,9 +1,10 @@
-﻿using UnityEngine;
+using UnityEngine;
 using TMPro;
+using System.Collections.Generic;
 
 public class InventoryManager : MonoBehaviour
 {
-    public static InventoryManager Instance;
+public static InventoryManager Instance;
 
     [Header("Slots")]
     public Transform slotsParent;
@@ -13,6 +14,13 @@ public class InventoryManager : MonoBehaviour
     public TMP_Text moneyVariable;
     public TMP_Text weightVariable;
     public TMP_Text slotsVariable;
+
+    [Header("Grid Settings")]
+    public int columns = 7;
+    public int rows = 5;
+
+    [Header("Currency")]
+    public int currentMoney = 0;
 
     [Header("Stack")]
     public int maxStackPerSlot = 5;
@@ -29,7 +37,77 @@ public class InventoryManager : MonoBehaviour
     void Start()
     {
         RefreshSlots();
+        SetupInitialItems();
         UpdateInventoryUI();
+    }
+
+    private void OnEnable()
+    {
+        RefreshSlots();
+        ReLinkSubSlots();
+    }
+
+    private void ReLinkSubSlots()
+    {
+        // Re-link sub-slots to masters without clearing items
+        // This is useful when the UI is re-enabled between rounds
+        foreach (InventorySlot slot in slots)
+        {
+            if (slot != null && slot.isMaster && slot.item != null)
+            {
+                PlaceItemAt(slot.index, slot.item, slot.rarity, slot.amount, slot.currentWidth, slot.currentHeight, slot.isRotated);
+            }
+        }
+        UpdateInventoryUI();
+    }
+
+    private class InitialItemData
+    {
+        public int index;
+        public Item item;
+        public CrystalRarity rarity;
+        public int amount;
+        public int w;
+        public int h;
+        public bool rot;
+    }
+
+    private void SetupInitialItems()
+    {
+        List<InitialItemData> initialItems = new List<InitialItemData>();
+
+        // 1. Collect all items defined in the editor
+        foreach (InventorySlot slot in slots)
+        {
+            if (slot != null && slot.item != null && (slot.isMaster || slot.masterSlot == null))
+            {
+                initialItems.Add(new InitialItemData
+                {
+                    index = slot.index,
+                    item = slot.item,
+                    rarity = slot.rarity,
+                    amount = slot.amount,
+                    w = slot.currentWidth > 0 ? slot.currentWidth : slot.item.width,
+                    h = slot.currentHeight > 0 ? slot.currentHeight : slot.item.height,
+                    rot = slot.isRotated
+                });
+            }
+        }
+
+        // 2. Clear all slots to ensure CanPlaceAt works correctly
+        foreach (InventorySlot slot in slots)
+        {
+            if (slot != null) slot.ClearSlot();
+        }
+
+        // 3. Re-place items with proper sub-slot logic
+        foreach (var data in initialItems)
+        {
+            if (CanPlaceAt(data.index, data.w, data.h))
+            {
+                PlaceItemAt(data.index, data.item, data.rarity, data.amount, data.w, data.h, data.rot);
+            }
+        }
     }
 
     public void RefreshSlots()
@@ -37,7 +115,20 @@ public class InventoryManager : MonoBehaviour
         if (slotsParent != null)
         {
             slots = slotsParent.GetComponentsInChildren<InventorySlot>(true);
+            for (int i = 0; i < slots.Length; i++)
+            {
+                slots[i].index = i;
+            }
         }
+    }
+
+    public bool HasWeapon()
+    {
+        foreach (InventorySlot slot in slots)
+        {
+            if (slot != null && !slot.IsEmpty() && slot.isMaster && slot.item != null && slot.item.isWeapon) return true;
+        }
+        return false;
     }
 
     public bool AddItem(Item item, CrystalRarity rarity)
@@ -45,76 +136,171 @@ public class InventoryManager : MonoBehaviour
         return AddItemAmount(item, rarity, 1);
     }
 
-    public bool AddItemAmount(Item item, CrystalRarity rarity, int quantity)
+    public bool AddItemAmount(Item item, CrystalRarity rarity, int quantity, int forcedW = -1, int forcedH = -1, bool rotated = false)
     {
         RefreshSlots();
         if (item == null) return false;
 
         int remaining = quantity;
+        string normalizedTargetName = NormalizeItemName(item.name);
+        
+        int w = forcedW != -1 ? forcedW : item.width;
+        int h = forcedH != -1 ? forcedH : item.height;
 
-        foreach (InventorySlot slot in slots)
-        {
-            if (slot == null) continue;
-
-            if (!slot.IsEmpty() && slot.item == item && slot.rarity == rarity)
-            {
-                if (slot.amount < maxStackPerSlot)
-                {
-                    remaining = slot.AddToStack(remaining);
-                    if (remaining <= 0) break;
-                }
-            }
-        }
-
-        if (remaining > 0)
+        // 1. Try to stack in existing slots (only for 1x1 items)
+        if (w == 1 && h == 1)
         {
             foreach (InventorySlot slot in slots)
             {
                 if (slot == null) continue;
-
-                if (slot.IsEmpty())
+                // Only stack if it's the same item (ignoring rarity and instance specific suffixes)
+                if (!slot.IsEmpty() && slot.isMaster && slot.item != null && 
+                    (slot.item == item || NormalizeItemName(slot.item.name) == normalizedTargetName))
                 {
-                    int amountToPut = Mathf.Min(maxStackPerSlot, remaining);
-                    slot.SetItem(item, rarity, amountToPut);
-                    remaining -= amountToPut;
-                    if (remaining <= 0) break;
+                    if (slot.amount < maxStackPerSlot)
+                    {
+                        remaining = slot.AddToStack(remaining);
+                        if (remaining <= 0) break;
+                    }
                 }
             }
         }
 
+        // 2. Find new space
+        while (remaining > 0)
+        {
+            int foundIndex = FindEmptySpace(w, h);
+            if (foundIndex != -1)
+            {
+                int amountToPut = (w == 1 && h == 1) ? Mathf.Min(maxStackPerSlot, remaining) : 1;
+                PlaceItemAt(foundIndex, item, rarity, amountToPut, w, h, rotated);
+                remaining -= amountToPut;
+                if (w > 1 || h > 1) break; 
+            }
+            else
+            {
+                break; 
+            }
+        }
+
         UpdateInventoryUI();
-        return remaining <= 0;
+        return remaining < quantity;
     }
 
-    public void CompactStacksByRarity()
+    public static string NormalizeItemName(string name)
     {
-        RefreshSlots();
+        if (string.IsNullOrEmpty(name)) return "";
+        // Aggressive normalization
+        string normalized = name.Replace("(Clone)", "");
+        normalized = normalized.Replace("Variant", "");
+        normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"\d", ""); // remove numbers
+        normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"[_\-\s]", ""); // remove spaces, underscores, hyphens
+        return normalized.Trim().ToLower();
+    }
 
-        for (int i = 0; i < slots.Length; i++)
+    public int FindEmptySpace(int w, int h)
+    {
+        for (int r = 0; r <= rows - h; r++)
         {
-            InventorySlot mainSlot = slots[i];
-            if (mainSlot == null || mainSlot.IsEmpty()) continue;
-
-            for (int j = i + 1; j < slots.Length; j++)
+            for (int c = 0; c <= columns - w; c++)
             {
-                InventorySlot otherSlot = slots[j];
-                if (otherSlot == null || otherSlot.IsEmpty()) continue;
+                int index = r * columns + c;
+                if (CanPlaceAt(index, w, h)) return index;
+            }
+        }
+        return -1;
+    }
 
-                // ADICIONADO: Verificar se é o MESMO item (ScriptableObject)
-                if (mainSlot.item == otherSlot.item &&
-                    mainSlot.rarity == otherSlot.rarity &&
-                    mainSlot.amount < maxStackPerSlot)
+    public bool CanPlaceAt(int index, int w, int h, InventorySlot ignoreMaster = null)
+    {
+        int startR = index / columns;
+        int startC = index % columns;
+
+        if (startC + w > columns || startR + h > rows) return false;
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int checkIndex = (startR + y) * columns + (startC + x);
+                if (checkIndex >= slots.Length) return false;
+                
+                InventorySlot slot = slots[checkIndex];
+                if (!slot.IsEmpty())
                 {
-                    int remaining = mainSlot.AddToStack(otherSlot.amount);
+                    if (ignoreMaster != null && slot.masterSlot == ignoreMaster) continue;
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
-                    if (remaining <= 0)
+    public void PlaceItemAt(int index, Item item, CrystalRarity rarity, int amount, int w = -1, int h = -1, bool rotated = false)
+    {
+        int startR = index / columns;
+        int startC = index % columns;
+        InventorySlot master = slots[index];
+
+        int itemW = w != -1 ? w : item.width;
+        int itemH = h != -1 ? h : item.height;
+
+        master.isRotated = rotated;
+        master.SetItem(item, rarity, amount, itemW, itemH);
+        master.isMaster = true;
+        master.masterSlot = master;
+
+        for (int y = 0; y < itemH; y++)
+        {
+            for (int x = 0; x < itemW; x++)
+            {
+                if (x == 0 && y == 0) continue;
+                
+                int currentC = startC + x;
+                int currentR = startR + y;
+                
+                if (currentC < columns && currentR < rows)
+                {
+                    int subIndex = currentR * columns + currentC;
+                    if (subIndex < slots.Length)
                     {
-                        otherSlot.ClearSlot();
+                        InventorySlot subSlot = slots[subIndex];
+                        subSlot.masterSlot = master;
+                        subSlot.item = item;
+                        subSlot.rarity = rarity;
+                        subSlot.isMaster = false;
+                        subSlot.currentWidth = itemW;
+                        subSlot.currentHeight = itemH;
+                        subSlot.isRotated = rotated;
+                        subSlot.UpdateSlotUI();
                     }
-                    else
+                }
+            }
+        }
+    }
+
+    public void RemoveItem(InventorySlot master)
+    {
+        if (master == null || !master.isMaster || master.item == null) return;
+        
+        int startR = master.index / columns;
+        int startC = master.index % columns;
+        int w = master.currentWidth;
+        int h = master.currentHeight;
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int currentC = startC + x;
+                int currentR = startR + y;
+                
+                if (currentC < columns && currentR < rows)
+                {
+                    int subIndex = currentR * columns + currentC;
+                    if (subIndex < slots.Length)
                     {
-                        // Se sobrou algo, o otherSlot fica com o resto e o mainSlot fica cheio
-                        otherSlot.SetItem(otherSlot.item, otherSlot.rarity, remaining);
+                        slots[subIndex].ClearSlot();
                     }
                 }
             }
@@ -123,88 +309,97 @@ public class InventoryManager : MonoBehaviour
 
     public bool MoveOrStackSlot(InventorySlot fromSlot, InventorySlot toSlot)
     {
-        RefreshSlots();
-
         if (fromSlot == null || toSlot == null) return false;
-        if (fromSlot == toSlot) return false;
-        if (fromSlot.IsEmpty()) return false;
+        InventorySlot master = fromSlot.masterSlot;
+        if (master == null || master.item == null) return false;
 
-        Item fromItem = fromSlot.item;
-        CrystalRarity fromRarity = fromSlot.rarity;
-        int fromAmount = fromSlot.amount;
+        Item item = master.item;
+        CrystalRarity rarity = master.rarity;
+        int amount = master.amount;
+        int w = master.currentWidth;
+        int h = master.currentHeight;
+        bool rotated = master.isRotated;
 
-        // 1. Slot vazio: move tudo
-        if (toSlot.IsEmpty())
+        // Try to place at toSlot
+        if (CanPlaceAt(toSlot.index, w, h, master))
         {
-            toSlot.SetItem(fromItem, fromRarity, fromAmount);
-            fromSlot.ClearSlot();
-
-            CompactStacksByRarity();
+            RemoveItem(master);
+            PlaceItemAt(toSlot.index, item, rarity, amount, w, h, rotated);
             UpdateInventoryUI();
             return true;
         }
 
-        // 2. Mesma raridade: faz stack
-        if (toSlot.rarity == fromRarity &&
-            toSlot.amount < maxStackPerSlot)
+        // Try stacking
+        InventorySlot targetMaster = toSlot.masterSlot;
+        if (targetMaster != null && targetMaster != master && 
+            targetMaster.item != null && 
+            (targetMaster.item == item || NormalizeItemName(targetMaster.item.name) == NormalizeItemName(item.name)) && 
+            w == 1 && h == 1)
         {
-            int remaining = toSlot.AddToStack(fromAmount);
-
+            int remaining = targetMaster.AddToStack(amount);
             if (remaining <= 0)
             {
-                fromSlot.ClearSlot();
+                RemoveItem(master);
             }
             else
             {
-                fromSlot.SetItem(fromItem, fromRarity, remaining);
+                master.amount = remaining;
+                master.UpdateSlotUI();
             }
-
-            CompactStacksByRarity();
             UpdateInventoryUI();
             return true;
         }
 
-        // 3. Raridade diferente ou slot cheio: troca
-        Item tempItem = toSlot.item;
-        CrystalRarity tempRarity = toSlot.rarity;
-        int tempAmount = toSlot.amount;
-
-        toSlot.SetItem(fromItem, fromRarity, fromAmount);
-        fromSlot.SetItem(tempItem, tempRarity, tempAmount);
-
-        CompactStacksByRarity();
-        UpdateInventoryUI();
-        return true;
+        return false;
     }
 
     public void UpdateInventoryUI()
     {
         RefreshSlots();
 
-        int totalMoney = 0;
+        int totalInventoryValue = 0;
         float totalWeight = 0f;
         int usedSlots = 0;
         int totalSlots = slots.Length;
 
         foreach (InventorySlot slot in slots)
         {
-            if (slot != null && !slot.IsEmpty())
+            if (slot != null)
             {
-                totalMoney += slot.item.value * slot.amount;
-                totalMoney += slot.item.value * slot.amount;
-                totalWeight += slot.item.weight * slot.amount;
-                usedSlots++;
+                if (slot.isMaster && !slot.IsEmpty() && slot.item != null)
+                {
+                    totalInventoryValue += slot.item.value * slot.amount;
+                    totalWeight += slot.item.weight * slot.amount;
+                }
+                if (!slot.IsEmpty())
+                {
+                    usedSlots++;
+                }
             }
         }
 
         if (moneyVariable != null)
-            moneyVariable.text = totalMoney.ToString() + " €";
+            moneyVariable.text = (currentMoney + totalInventoryValue).ToString() + " €";
 
         if (weightVariable != null)
             weightVariable.text = totalWeight.ToString("0.#") + " / " + maxWeight.ToString("0.#") + " KG";
 
         if (slotsVariable != null)
             slotsVariable.text = usedSlots.ToString() + " / " + totalSlots.ToString();
+    }
+
+    public void SellAllNonWeapons()
+    {
+        RefreshSlots();
+        foreach (InventorySlot slot in slots)
+        {
+            if (slot != null && slot.isMaster && !slot.IsEmpty() && slot.item != null && !slot.item.isWeapon)
+            {
+                currentMoney += slot.item.value * slot.amount;
+                RemoveItem(slot);
+            }
+        }
+        UpdateInventoryUI();
     }
 
     public void UpdateMoney()
