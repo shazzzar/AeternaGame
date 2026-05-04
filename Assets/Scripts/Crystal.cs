@@ -1,14 +1,12 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
-// Updated with 3 more rarities as requested
 public enum CrystalRarity { Common, Uncommon, Rare, Epic, Mythic, Ancient, Legendary }
 
 public class Crystal : MonoBehaviour
 {
-    public Sprite itemIcon;
-    public string crystalName;
+    [Header("Item")]
+    public Item item;
+
     public CrystalRarity rarity;
     public float baseMineTime = 2f;
 
@@ -25,14 +23,12 @@ public class Crystal : MonoBehaviour
             CrystalRarity.Mythic => baseMineTime * 5f,
             CrystalRarity.Ancient => baseMineTime * 6f,
             CrystalRarity.Legendary => baseMineTime * 8f,
-            _ => baseMineTime // Default for Common
+            _ => baseMineTime
         };
     }
 
     public int GetDropAmount()
     {
-        // Legendary drops between 5-10
-        // Others scaled down from there
         return rarity switch
         {
             CrystalRarity.Legendary => Random.Range(5, 11),
@@ -41,23 +37,38 @@ public class Crystal : MonoBehaviour
             CrystalRarity.Epic => Random.Range(3, 6),
             CrystalRarity.Rare => Random.Range(2, 5),
             CrystalRarity.Uncommon => Random.Range(2, 4),
-            _ => Random.Range(1, 3) // Common
+            _ => Random.Range(1, 3)
         };
     }
 
     private void Start()
     {
-        if (interactionPrompt) interactionPrompt.SetActive(false);
+        if (interactionPrompt != null)
+            interactionPrompt.SetActive(false);
     }
 
     public void ShowPrompt(bool state)
     {
-        if (interactionPrompt) interactionPrompt.SetActive(state);
+        if (interactionPrompt != null)
+            interactionPrompt.SetActive(state);
     }
 
     public void OnMined()
     {
-        Debug.Log(crystalName + " minerado!");
-        Destroy(gameObject);
+        if (item == null)
+        {
+            Debug.LogWarning("Crystal sem item atribuído!");
+            return;
+        }
+
+        int amount = GetDropAmount();
+
+        bool addedAny = InventoryManager.Instance.AddItemAmount(item, rarity, amount);
+
+        if (addedAny)
+        {
+            Debug.Log("Crystal minerado!");
+            Destroy(gameObject);
+        }
     }
 }

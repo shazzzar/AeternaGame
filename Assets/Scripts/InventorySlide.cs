@@ -11,20 +11,22 @@ public class InventorySlide : MonoBehaviour
 
     void Start()
     {
-       
         float panelWidth = panel.rect.width;
 
         visiblePos = new Vector2(0, 0);
         hiddenPos = new Vector2(panelWidth, 0);
 
-        // Começa escondido
         panel.anchoredPosition = hiddenPos;
+        SetCursorState(false);
     }
 
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.I))
+        {
             open = !open;
+            SetCursorState(open); 
+        }
 
         if (!open)
         {
@@ -36,5 +38,19 @@ public class InventorySlide : MonoBehaviour
             open ? visiblePos : hiddenPos,
             Time.deltaTime * speed
         );
+    }
+
+    void SetCursorState(bool isOpen)
+    {
+        if (isOpen)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 }
