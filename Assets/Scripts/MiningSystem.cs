@@ -1,11 +1,12 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class MiningSystem : MonoBehaviour
 {
-    public float interactionRange = 3f;
-    public LayerMask crystalLayer;
-    public Animator playerAnimator;
+    public float interactionRange = 3f; 
+    public LayerMask crystalLayer; 
+    public Animator playerAnimator; 
 
     private Crystal currentCrystal;
     public bool isMining = false;
@@ -16,7 +17,9 @@ public class MiningSystem : MonoBehaviour
         DetectCrystals();
 
         if (Input.GetKeyDown(KeyCode.E) && currentCrystal != null && !isMining)
+        {
             StartCoroutine(MineCrystal());
+        }
     }
 
     void DetectCrystals()
@@ -26,8 +29,6 @@ public class MiningSystem : MonoBehaviour
         if (hits.Length > 0)
         {
             Crystal nearest = hits[0].GetComponent<Crystal>();
-            if (nearest == null) return;
-
             if (currentCrystal != nearest)
             {
                 if (currentCrystal != null) currentCrystal.ShowPrompt(false);
@@ -49,39 +50,44 @@ public class MiningSystem : MonoBehaviour
     {
         isMining = true;
 
-        Crystal crystalToMine = currentCrystal;
-
         if (pickaxeModel != null) pickaxeModel.SetActive(true);
 
-        if (crystalToMine != null)
+        Vector3 direction = (currentCrystal.transform.position - transform.position);
+        direction.y = 0;
+
+        if (direction.sqrMagnitude > 0.01f)
         {
-            Vector3 direction = crystalToMine.transform.position - transform.position;
-            direction.y = 0;
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
 
-            if (direction.sqrMagnitude > 0.01f)
+            if (playerAnimator != null) playerAnimator.SetBool("isMining", true);
+
+           
+            float forceDuration = 0.3f;
+            float elapsed = 0;
+            while (elapsed < forceDuration)
             {
-                Quaternion targetRotation = Quaternion.LookRotation(direction);
-
-                if (playerAnimator != null) playerAnimator.SetBool("isMining", true);
-
-                float forceDuration = 0.3f;
-                float elapsed = 0;
-
-                while (elapsed < forceDuration)
-                {
-                    transform.rotation = targetRotation;
-                    elapsed += Time.deltaTime;
-                    yield return null;
-                }
-
                 transform.rotation = targetRotation;
+                elapsed += Time.deltaTime;
+                yield return null;
             }
 
-            float remainingTime = crystalToMine.GetMiningDuration() - 0.3f;
-            if (remainingTime > 0) yield return new WaitForSeconds(remainingTime);
+            transform.rotation = targetRotation;
+        }
 
-            if (crystalToMine != null)
-                crystalToMine.OnMined();
+        float remainingTime = currentCrystal.GetMiningDuration() - 0.3f;
+        if (remainingTime > 0) yield return new WaitForSeconds(remainingTime);
+
+        if (currentCrystal != null)
+        {
+            Sprite crystalItem = currentCrystal.itemIcon; // Pega o ícone do cristal
+
+            // Tenta adicionar ao inventário
+            bool success = InventoryManager.Instance.AddItem(crystalItem);
+
+            if (success)
+            {
+                currentCrystal.OnMined(); // Só destrói o cristal se houve espaço no inventário
+            }
         }
 
         if (playerAnimator != null) playerAnimator.SetBool("isMining", false);

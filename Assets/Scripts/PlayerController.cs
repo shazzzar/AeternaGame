@@ -1,347 +1,96 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    public static bool IsWeaponEquipped = false;
-
-    [Header("Movement")]
     [SerializeField] private Rigidbody _rb;
-    [SerializeField] private Animator _animator;
-    public float speed = 5f;
-    [SerializeField] private float _turnspeed = 360f;
+    [SerializeField] private Animator _animator; // Assign in Inspector
+    [SerializeField] private float _speed = 5;
+    [SerializeField] private float _turnspeed = 360;
 
     [Header("Jump Settings")]
     [SerializeField] private float _jumpForce = 5f;
-    [SerializeField] private LayerMask _groundLayer;
-    [SerializeField] private Transform _groundCheck;
-
-    [Header("Weapon Settings")]
-    [SerializeField] private GameObject _weapon;
-    [SerializeField] private Camera _camera;
-    [SerializeField] private float _aimRotationSpeed = 15f;
-    [SerializeField] private float _shootDistance = 100f;
-    public float damage = 10f;
-    public float fireRate = 0.5f;
-[SerializeField] private LayerMask _shootMask = ~0;
-
-    [Header("UI & Cursor")]
-    [SerializeField] private Texture2D _cursorTexture;
-
-    [Header("VFX")]
-    [SerializeField] private Transform _gunTip;
-    [SerializeField] private Material _tracerMaterial;
+    [SerializeField] private LayerMask _groundLayer; // Set to your "Ground" layer
+    [SerializeField] private Transform _groundCheck; // A child object at the player's feet
 
     private Vector3 _input;
     private bool _isGrounded;
-    private bool _hasGun = false;
-    private float _nextFireTime = 0f;
 
     private MiningSystem _miningSystem;
-
     private void Start()
     {
         _miningSystem = GetComponent<MiningSystem>();
-
-        IsWeaponEquipped = _hasGun;
-
-        if (_weapon != null)
-            _weapon.SetActive(_hasGun);
-
-        UpdateCursorState();
     }
 
     private void Update()
     {
+        if (_miningSystem != null && _miningSystem.isMining)
+        {
+            _input = Vector3.zero;
+            _animator.SetFloat("Speed", 0f); // Keep animator in Idle
+            return; // Stops Look() and GatherInput() from running
+        }
+
         CheckGround();
         GatherInput();
-
-        HandleWeaponToggle();
-
-        bool isUIOpen = InventorySlide.IsInventoryOpen || (RoundManager.Instance != null && RoundManager.Instance.isShopPhase);
-
-        if (_hasGun && !isUIOpen)
-        {
-            ApplyWeaponCursor();
-
-            if (Input.GetMouseButton(0))
-            {
-                RotateToMouse();
-            }
-            else
-            {
-                Look();
-            }
-
-            HandleShooting();
-        }
-        else
-        {
-            if (!isUIOpen)
-            {
-                UpdateCursorState();
-            }
-            else
-            {
-                UpdateCursorState();
-            }
-
-            Look();
-        }
-
+        Look();
         Animate();
     }
 
     private void FixedUpdate()
     {
         if (_miningSystem != null && _miningSystem.isMining) return;
+
         Move();
     }
 
     void CheckGround()
     {
-        if (_groundCheck == null) return;
-
         _isGrounded = Physics.CheckSphere(_groundCheck.position, 0.2f, _groundLayer);
 
-        if (_animator != null)
-            _animator.SetBool("isGrounded", _isGrounded);
+        // Names must match your Animator parameters exactly
+        _animator.SetBool("isGrounded", _isGrounded);
+        _animator.SetFloat("VerticalVelocity", _rb.linearVelocity.y);
+        _animator.SetFloat("Speed", _input.magnitude);
     }
 
     void GatherInput()
     {
         _input = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
 
+        // Jump Trigger
         if (Input.GetButtonDown("Jump") && _isGrounded)
         {
             _rb.AddForce(Vector3.up * _jumpForce, ForceMode.Impulse);
+            _animator.SetTrigger("Jump");
+        }
+    }
 
-            if (_animator != null)
-                _animator.SetTrigger("Jump");
+    void Look()
+    {
+        if (_input != Vector3.zero)
+        {
+
+            var relative = (transform.position + _input.ToIso()) - transform.position;
+            var rot = Quaternion.LookRotation(relative, Vector3.up);
+
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, rot, _turnspeed * Time.deltaTime);
         }
     }
 
     void Move()
     {
-        Vector3 moveDirection = _input.ToIso();
+        _rb.MovePosition(transform.position + (transform.forward * _input.magnitude) * _speed * Time.deltaTime);
+    }
 
-        if (moveDirection.magnitude > 0)
-        {
-            _rb.MovePosition(transform.position + moveDirection * speed * Time.deltaTime);
-        }
-        }
-
-        void Look()
-        {
-        if (_input != Vector3.zero)
-        {
-            Vector3 relative = (transform.position + _input.ToIso()) - transform.position;
-            Quaternion rot = Quaternion.LookRotation(relative, Vector3.up);
-
-            transform.rotation = Quaternion.RotateTowards(
-                transform.rotation,
-                rot,
-                _turnspeed * Time.deltaTime
-            );
-        }
-        }
-
-        void RotateToMouse()
-        {
-        if (_camera == null) return;
-
-        Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
-        Plane plane = new Plane(Vector3.up, transform.position);
-
-        if (plane.Raycast(ray, out float distance))
-        {
-            Vector3 point = ray.GetPoint(distance);
-            Vector3 direction = point - transform.position;
-            direction.y = 0f;
-
-            if (direction.sqrMagnitude > 0.01f)
-            {
-                Quaternion targetRotation = Quaternion.LookRotation(direction);
-
-                transform.rotation = Quaternion.RotateTowards(
-                    transform.rotation,
-                    targetRotation,
-                    _aimRotationSpeed * 100f * Time.deltaTime
-                );
-            }
-        }
-        }
-
-        void Animate()
-        {
-        if (_animator == null) return;
-
+    void Animate()
+    {
+        // Pass the movement magnitude to the Animator
+        // If magnitude > 0.5, it transitions from Walk to Run in your Blend Tree
         _animator.SetFloat("Speed", _input.magnitude);
+
+        // Vertical velocity for the "Idle Jump" (falling/rising) animation state
         _animator.SetFloat("VerticalVelocity", _rb.linearVelocity.y);
-        _animator.SetBool("HasGun", _hasGun);
-        }
-
-        void HandleWeaponToggle()
-        {
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-        {
-            if (!InventoryManager.Instance.HasWeapon())
-            {
-                Debug.Log("No weapon in inventory!");
-                return;
-            }
-
-            _hasGun = !_hasGun;
-            IsWeaponEquipped = _hasGun;
-
-            if (_weapon != null)
-                _weapon.SetActive(_hasGun);
-
-            if (_animator != null)
-                _animator.SetBool("HasGun", _hasGun);
-
-            UpdateCursorState();
-        }
-        }
-
-        void HandleShooting()
-        {
-        if (!_hasGun) return;
-        if (InventorySlide.IsInventoryOpen) return;
-
-        if (Input.GetMouseButton(0) && Time.time >= _nextFireTime)
-        {
-            _nextFireTime = Time.time + fireRate;
-
-            float animSpeedMultiplier = 1f / fireRate;
-
-            if (_animator != null)
-            {
-                _animator.SetFloat("ShootSpeed", animSpeedMultiplier);
-                _animator.SetTrigger("Shoot");
-            }
-
-            ShootRayVisual();
-        }
-        }
-
-        void ShootRayVisual()
-        {
-        if (_camera == null) return;
-
-        Ray cameraRay = _camera.ScreenPointToRay(Input.mousePosition);
-
-        Vector3 origin = _gunTip != null ? _gunTip.position : transform.position + Vector3.up;
-        Vector3 targetPoint;
-
-        if (Physics.Raycast(cameraRay, out RaycastHit cameraHit, _shootDistance, _shootMask, QueryTriggerInteraction.Ignore))
-        {
-            targetPoint = cameraHit.point;
-        }
-        else
-        {
-            Plane groundPlane = new Plane(Vector3.up, transform.position);
-
-            if (groundPlane.Raycast(cameraRay, out float distance))
-            {
-                targetPoint = cameraRay.GetPoint(distance);
-            }
-            else
-            {
-                targetPoint = cameraRay.GetPoint(_shootDistance);
-            }
-        }
-
-        Vector3 shootDirection = (targetPoint - origin).normalized;
-
-        if (Physics.Raycast(origin, shootDirection, out RaycastHit hit, _shootDistance, _shootMask, QueryTriggerInteraction.Ignore))
-        {
-            targetPoint = hit.point;
-
-            EnemyAI enemy = hit.collider.GetComponentInParent<EnemyAI>();
-
-            if (enemy != null)
-            {
-                enemy.TakeDamage(damage);
-                Debug.Log("Direct hit on: " + hit.collider.name);
-            }
-        }
-        else
-        {
-            targetPoint = origin + shootDirection * _shootDistance;
-        }
-
-        StartCoroutine(SpawnTracer(origin, targetPoint));
-    }
-
-    IEnumerator SpawnTracer(Vector3 start, Vector3 end)
-    {
-        GameObject tracerObj = new GameObject("BulletTracer");
-        LineRenderer lr = tracerObj.AddComponent<LineRenderer>();
-
-        lr.material = _tracerMaterial;
-        lr.startWidth = 0.05f;
-        lr.endWidth = 0.02f;
-        lr.positionCount = 2;
-        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        lr.receiveShadows = false;
-
-        float t = 0f;
-        float speed = 15f;
-
-        while (t < 1f)
-        {
-            t += Time.deltaTime * speed;
-            lr.SetPosition(0, start);
-            lr.SetPosition(1, Vector3.Lerp(start, end, t));
-            yield return null;
-        }
-
-        Destroy(tracerObj, 0.05f);
-    }
-
-    void ApplyWeaponCursor()
-    {
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        if (_cursorTexture != null)
-        {
-            Cursor.SetCursor(
-                _cursorTexture,
-                new Vector2(_cursorTexture.width / 2f, _cursorTexture.height / 2f),
-                CursorMode.Auto
-            );
-        }
-    }
-
-    public void UpdateCursorState()
-    {
-        if (RoundManager.Instance != null && RoundManager.Instance.isShopPhase)
-        {
-            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            return;
-        }
-
-        if (InventorySlide.IsInventoryOpen)
-        {
-            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            return;
-        }
-
-        if (_hasGun)
-        {
-            ApplyWeaponCursor();
-        }
-        else
-        {
-            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
     }
 }
