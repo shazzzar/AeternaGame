@@ -3,6 +3,8 @@ using UnityEngine;
 public class ShopManager : MonoBehaviour
 {
     public static ShopManager Instance;
+    public static bool shopOpen = false;
+
 
     [Header("Prices")]
     public int weaponPrice = 50;

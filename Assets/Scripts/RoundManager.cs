@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 public class RoundManager : MonoBehaviour
 {
@@ -138,9 +139,9 @@ else
         void EndRound()
         {
         isShopPhase = true;
+
+        currentRound++;
         
-        // Stop simulation
-        Time.timeScale = 0;
         
         // Sell non-weapon items
         if (InventoryManager.Instance != null)
@@ -148,10 +149,10 @@ else
             InventoryManager.Instance.SellAllNonWeapons();
         }
 
-        // Open Shop
+        // Ir para a Scene da Shop, desbloquear o cursor
         if (shopPanel != null)
         {
-            shopPanel.SetActive(true);
+            StartCoroutine(LoadSceneAfterPause());
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
@@ -182,9 +183,17 @@ else
         Debug.Log("Round " + currentRound + " ended. Shop phase started.");
         }
 
+
+
+    private IEnumerator LoadSceneAfterPause()
+    {
+        yield return null; // espera um frame para garantir que o pause não bloqueia
+        SceneManager.LoadScene("Round_Pause"); // substitui pelo nome da tua scene
+    }
+
+
     public void NextRound()
     {
-        currentRound++;
         StartRound();
     }
 
