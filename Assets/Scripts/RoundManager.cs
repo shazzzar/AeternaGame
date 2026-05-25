@@ -112,6 +112,8 @@ public class RoundManager : MonoBehaviour
             invSlide.gameObject.SetActive(true);
         }
 
+        Canvas Slider = Object.FindAnyObjectByType<Canvas>(FindObjectsInactive.Include);
+
         if (hudParent != null) hudParent.SetActive(true);
 else
         {
