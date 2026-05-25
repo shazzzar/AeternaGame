@@ -140,7 +140,7 @@ anim = GetComponent<Animator>();
         health -= amount;
 
         StopAllCoroutines();
-        StartCoroutine(FlashRoutine());
+        _flashRoutine = StartCoroutine(FlashRoutine());
 
         if (health <= 0) Destroy(gameObject);
     }
