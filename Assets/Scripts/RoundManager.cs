@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 public class RoundManager : MonoBehaviour
 {
@@ -36,7 +37,26 @@ public class RoundManager : MonoBehaviour
 
     void Awake()
     {
-        Instance = this;
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            // Transfer references to the persistent instance
+            Instance.timerText = this.timerText;
+            Instance.roundText = this.roundText;
+            Instance.shopPanel = this.shopPanel;
+            Instance.winPanel = this.winPanel;
+            Instance.hudParent = this.hudParent;
+            
+            // Also sync current state if needed (though usually Instance is the source of truth)
+            
+            Destroy(gameObject);
+            return;
+        }
+
         terrain = Terrain.activeTerrain;
         FindPlayer();
         if (playerTransform != null)
@@ -52,9 +72,31 @@ public class RoundManager : MonoBehaviour
         if (pc != null) playerTransform = pc.transform;
     }
 
+    void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "SampleScene" && Instance == this)
+        {
+            StartRound();
+        }
+    }
+
     void Start()
     {
-        StartRound();
+        // Initial start
+        if (Instance == this && SceneManager.GetActiveScene().name == "SampleScene")
+        {
+            StartRound();
+        }
     }
 
     void Update()
@@ -112,10 +154,8 @@ public class RoundManager : MonoBehaviour
             invSlide.gameObject.SetActive(true);
         }
 
-        Canvas Slider = Object.FindAnyObjectByType<Canvas>(FindObjectsInactive.Include);
-
         if (hudParent != null) hudParent.SetActive(true);
-else
+        else
         {
             // Fallback: Show specific UI elements if hudParent is not set
             if (timerText != null) timerText.gameObject.SetActive(true);
@@ -133,42 +173,39 @@ else
         
         UpdateRoundUI();
         SpawnRoundEntities();
-        }
+    }
 
-        void EndRound()
-        {
+    void EndRound()
+    {
         isShopPhase = true;
         
-        // Stop simulation
-        Time.timeScale = 0;
+        // Simulation can continue at normal speed in the pause scene
+        Time.timeScale = 1;
         
-        // Sell non-weapon items
+        // Sell non-weapon items and save state
         if (InventoryManager.Instance != null)
         {
+            InventoryManager.Instance.RefreshSlots(); // Ensure slots are updated
             InventoryManager.Instance.SellAllNonWeapons();
+            InventoryManager.Instance.SaveInventoryState();
+            Debug.Log($"EndRound: Money after selling: {InventoryManager.Instance.currentMoney}");
         }
 
-        // Open Shop
-        if (shopPanel != null)
-        {
-            shopPanel.SetActive(true);
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        // Instead of opening the local shop panel, load the Round_Pause scene
+        SceneManager.LoadScene("Round_Pause");
 
         // Close and hide inventory
         InventorySlide invSlide = Object.FindAnyObjectByType<InventorySlide>();
         if (invSlide != null)
         {
             invSlide.ToggleInventory(false);
-            invSlide.gameObject.SetActive(false);
+            // invSlide.gameObject.SetActive(false); // DO NOT DISABLE THE GAMEOBJECT, or it won't handle input in the next scene
         }
 
         // Hide HUD
         if (hudParent != null) hudParent.SetActive(false);
-else
+        else
         {
-            // Fallback: Hide specific UI elements
             if (timerText != null) timerText.gameObject.SetActive(false);
             if (roundText != null) roundText.gameObject.SetActive(false);
             
@@ -179,13 +216,18 @@ else
         // Clear remaining entities
         ClearEntities();
 
-        Debug.Log("Round " + currentRound + " ended. Shop phase started.");
-        }
+        Debug.Log("Round " + currentRound + " ended. Loading Round_Pause scene.");
+    }
+
 
     public void NextRound()
     {
         currentRound++;
-        StartRound();
+        if (InventoryManager.Instance != null)
+        {
+            InventoryManager.Instance.SaveInventoryState();
+        }
+        SceneManager.LoadScene("SampleScene");
     }
 
     void SpawnRoundEntities()

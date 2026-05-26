@@ -9,6 +9,10 @@ public class PlayerHealth : MonoBehaviour
 
     void Start()
     {
+        if (PlayerStats.Instance != null)
+        {
+            maxHealth = PlayerStats.Instance.maxHealth;
+        }
         currentHealth = maxHealth;
         UpdateUI();
     }

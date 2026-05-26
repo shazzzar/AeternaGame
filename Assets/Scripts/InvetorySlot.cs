@@ -83,7 +83,9 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
     public bool IsEmpty()
     {
-        return masterSlot == null || masterSlot.item == null || (masterSlot.isMaster && masterSlot.amount <= 0);
+        if (this == null) return true;
+        if (masterSlot == null) return true;
+        return masterSlot.item == null || (masterSlot.isMaster && masterSlot.amount <= 0);
     }
 
     public int AddToStack(int quantity)

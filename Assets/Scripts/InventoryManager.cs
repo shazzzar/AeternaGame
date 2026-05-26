@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 public class InventoryManager : MonoBehaviour
 {
-public static InventoryManager Instance;
+    public static InventoryManager Instance;
 
     [Header("Slots")]
     public Transform slotsParent;
@@ -28,27 +28,179 @@ public static InventoryManager Instance;
     [Header("Weight")]
     public float maxWeight = 105f;
 
+    [System.Serializable]
+    private class SavedItemData
+    {
+        public int index;
+        public Item item;
+        public CrystalRarity rarity;
+        public int amount;
+        public int w;
+        public int h;
+        public bool rot;
+    }
+    private List<SavedItemData> _savedInventoryState = new List<SavedItemData>();
+
+    public void SaveInventoryState()
+    {
+        // Don't clear if we don't have slots to save from (prevents data loss)
+        if (slots == null || slots.Length == 0) 
+        {
+            Debug.LogWarning("InventoryManager: Attempted to save state but no slots are active. Skipping save to prevent data loss.");
+            return;
+        }
+
+        _savedInventoryState.Clear();
+        foreach (InventorySlot slot in slots)
+        {
+            if (slot != null && slot.item != null && slot.isMaster)
+            {
+                _savedInventoryState.Add(new SavedItemData
+                {
+                    index = slot.index,
+                    item = slot.item,
+                    rarity = slot.rarity,
+                    amount = slot.amount,
+                    w = slot.currentWidth,
+                    h = slot.currentHeight,
+                    rot = slot.isRotated
+                });
+            }
+        }
+        Debug.Log($"InventoryManager: Saved {_savedInventoryState.Count} items. Current Money: {currentMoney}");
+    }
+
+    public void LoadInventoryState()
+    {
+        RefreshSlots();
+        if (slots != null)
+        {
+            foreach (InventorySlot slot in slots)
+            {
+                if (slot != null) slot.ClearSlot();
+            }
+        }
+
+        foreach (var data in _savedInventoryState)
+        {
+            if (CanPlaceAt(data.index, data.w, data.h))
+            {
+                PlaceItemAt(data.index, data.item, data.rarity, data.amount, data.w, data.h, data.rot);
+            }
+            else
+            {
+                AddItemAmount(data.item, data.rarity, data.amount, data.w, data.h, data.rot);
+            }
+        }
+        UpdateInventoryUI();
+        Debug.Log($"InventoryManager: Restored {_savedInventoryState.Count} items. Current Money: {currentMoney}");
+    }
+
     void Awake()
     {
-        Instance = this;
+        if (Instance == null)
+        {
+            Instance = this;
+            transform.SetParent(null); 
+            DontDestroyOnLoad(gameObject);
+            Debug.Log("InventoryManager: Initialized persistent instance.");
+        }
+        else
+        {
+            Debug.Log("InventoryManager: Destroying duplicate instance.");
+            Destroy(gameObject);
+            return;
+        }
+
         RefreshSlots();
     }
 
+    void OnEnable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        if (Instance == this)
+        {
+            Debug.Log($"InventoryManager: OnSceneLoaded triggered for scene {scene.name}");
+            
+            // Re-find references in the new scene
+            FindUIReferences();
+            
+            if (slotsParent != null)
+            {
+                LoadInventoryState();
+            }
+            else
+            {
+                Debug.LogWarning("InventoryManager: Could not find InventoryPanel/SlotContainer in this scene.");
+            }
+        }
+    }
+
+    private void FindUIReferences()
+    {
+        // Search through all canvases for the InventoryPanel
+        Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+        RectTransform foundPanel = null;
+
+        foreach (Canvas canvas in canvases)
+        {
+            foreach (RectTransform rt in canvas.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (rt.name == "InventoryPanel")
+                {
+                    foundPanel = rt;
+                    break;
+                }
+            }
+            if (foundPanel != null) break;
+        }
+
+        if (foundPanel != null)
+        {
+            Debug.Log($"InventoryManager: Found UI Panel: {foundPanel.name}");
+            slotsParent = foundPanel.transform.Find("SlotContainer");
+            moneyVariable = foundPanel.transform.Find("MoneyVariable")?.GetComponent<TMP_Text>();
+            
+            // Try different names for weight/slots labels
+            weightVariable = foundPanel.transform.Find("Weight")?.GetComponent<TMP_Text>();
+            slotsVariable = foundPanel.transform.Find("SlotsVariable")?.GetComponent<TMP_Text>();
+            if (slotsVariable == null) slotsVariable = foundPanel.transform.Find("Title")?.GetComponent<TMP_Text>();
+
+            InventorySlide slide = GetComponent<InventorySlide>();
+            if (slide != null)
+            {
+                slide.panel = foundPanel;
+                slide.InitializePanel();
+            }
+            
+            RefreshSlots();
+        }
+    }
+
+    private bool _initialItemsSetup = false;
     void Start()
     {
-        RefreshSlots();
-        SetupInitialItems();
-        UpdateInventoryUI();
-    }
-
-    private void OnEnable()
-    {
-        RefreshSlots();
-        ReLinkSubSlots();
+        if (!_initialItemsSetup)
+        {
+            RefreshSlots();
+            SetupInitialItems();
+            UpdateInventoryUI();
+            _initialItemsSetup = true;
+        }
     }
 
     private void ReLinkSubSlots()
     {
+        if (slots == null) return;
         foreach (InventorySlot slot in slots)
         {
             if (slot != null && slot.isMaster && slot.item != null)
@@ -73,7 +225,6 @@ public static InventoryManager Instance;
     private void SetupInitialItems()
     {
         List<InitialItemData> initialItems = new List<InitialItemData>();
-
         foreach (InventorySlot slot in slots)
         {
             if (slot != null && slot.item != null && (slot.isMaster || slot.masterSlot == null))
@@ -91,10 +242,7 @@ public static InventoryManager Instance;
             }
         }
 
-        foreach (InventorySlot slot in slots)
-        {
-            if (slot != null) slot.ClearSlot();
-        }
+        foreach (InventorySlot slot in slots) if (slot != null) slot.ClearSlot();
 
         foreach (var data in initialItems)
         {
@@ -114,11 +262,18 @@ public static InventoryManager Instance;
             {
                 slots[i].index = i;
             }
+            Debug.Log($"InventoryManager: Refreshed {slots.Length} slots on {slotsParent.name}.");
+        }
+        else
+        {
+            slots = new InventorySlot[0];
+            Debug.LogWarning("InventoryManager: RefreshSlots called but slotsParent is null.");
         }
     }
 
     public bool HasWeapon()
     {
+        if (slots == null) return false;
         foreach (InventorySlot slot in slots)
         {
             if (slot != null && !slot.IsEmpty() && slot.isMaster && slot.item != null && slot.item.isWeapon) return true;
@@ -133,8 +288,14 @@ public static InventoryManager Instance;
 
     public bool AddItemAmount(Item item, CrystalRarity rarity, int quantity, int forcedW = -1, int forcedH = -1, bool rotated = false)
     {
-        RefreshSlots();
         if (item == null) return false;
+        
+        RefreshSlots();
+        if (slots == null || slots.Length == 0) 
+        {
+            Debug.LogWarning("InventoryManager: AddItemAmount failed - no active slots!");
+            return false;
+        }
 
         int remaining = quantity;
         string normalizedTargetName = NormalizeItemName(item.name);
@@ -169,9 +330,10 @@ public static InventoryManager Instance;
                 remaining -= amountToPut;
                 if (w > 1 || h > 1) break; 
             }
-            else
+            else 
             {
-                break; 
+                Debug.LogWarning($"InventoryManager: No space for {item.name}");
+                break;
             }
         }
 
@@ -206,7 +368,6 @@ public static InventoryManager Instance;
     {
         int startR = index / columns;
         int startC = index % columns;
-
         if (startC + w > columns || startR + h > rows) return false;
 
         for (int y = 0; y < h; y++)
@@ -246,10 +407,8 @@ public static InventoryManager Instance;
             for (int x = 0; x < itemW; x++)
             {
                 if (x == 0 && y == 0) continue;
-                
                 int currentC = startC + x;
                 int currentR = startR + y;
-                
                 if (currentC < columns && currentR < rows)
                 {
                     int subIndex = currentR * columns + currentC;
@@ -273,7 +432,6 @@ public static InventoryManager Instance;
     public void RemoveItem(InventorySlot master)
     {
         if (master == null || !master.isMaster || master.item == null) return;
-        
         int startR = master.index / columns;
         int startC = master.index % columns;
         int w = master.currentWidth;
@@ -285,14 +443,10 @@ public static InventoryManager Instance;
             {
                 int currentC = startC + x;
                 int currentR = startR + y;
-                
                 if (currentC < columns && currentR < rows)
                 {
                     int subIndex = currentR * columns + currentC;
-                    if (subIndex < slots.Length)
-                    {
-                        slots[subIndex].ClearSlot();
-                    }
+                    if (subIndex < slots.Length) slots[subIndex].ClearSlot();
                 }
             }
         }
@@ -320,79 +474,78 @@ public static InventoryManager Instance;
         }
 
         InventorySlot targetMaster = toSlot.masterSlot;
-        if (targetMaster != null && targetMaster != master && 
-            targetMaster.item != null && 
-            (targetMaster.item == item || NormalizeItemName(targetMaster.item.name) == NormalizeItemName(item.name)) && 
-            w == 1 && h == 1)
+        if (targetMaster != null && targetMaster != master && targetMaster.item != null && 
+            (targetMaster.item == item || NormalizeItemName(targetMaster.item.name) == NormalizeItemName(item.name)) && w == 1 && h == 1)
         {
             int remaining = targetMaster.AddToStack(amount);
-            if (remaining <= 0)
-            {
-                RemoveItem(master);
-            }
-            else
-            {
-                master.amount = remaining;
-                master.UpdateSlotUI();
-            }
+            if (remaining <= 0) RemoveItem(master);
+            else { master.amount = remaining; master.UpdateSlotUI(); }
             UpdateInventoryUI();
             return true;
         }
-
         return false;
     }
 
     public void UpdateInventoryUI()
     {
-        RefreshSlots();
-
-        int totalInventoryValue = 0;
-        float totalWeight = 0f;
-        int usedSlots = 0;
-        int totalSlots = slots.Length;
-
-        foreach (InventorySlot slot in slots)
+        // Sync with PlayerStats
+        if (PlayerStats.Instance != null)
         {
-            if (slot != null)
+            // If we have no money in manager but stats has money (e.g. after scene load), restore it
+            if (currentMoney == 0 && PlayerStats.Instance.money > 0) 
             {
-                if (slot.isMaster && !slot.IsEmpty() && slot.item != null)
+                currentMoney = PlayerStats.Instance.money;
+            }
+            else 
+            {
+                // Otherwise manager is the source of truth (selling items updates manager first)
+                PlayerStats.Instance.money = currentMoney;
+            }
+        }
+
+        RefreshSlots();
+        int totalInventoryValue = 0;
+float totalWeight = 0f;
+        int usedSlots = 0;
+        int totalSlots = slots != null ? slots.Length : 0;
+
+        if (slots != null)
+        {
+            foreach (InventorySlot slot in slots)
+            {
+                if (slot != null)
                 {
-                    totalInventoryValue += slot.item.value * slot.amount;
-                    totalWeight += slot.item.weight * slot.amount;
-                }
-                if (!slot.IsEmpty())
-                {
-                    usedSlots++;
+                    if (slot.isMaster && !slot.IsEmpty() && slot.item != null)
+                    {
+                        totalInventoryValue += slot.item.value * slot.amount;
+                        totalWeight += slot.item.weight * slot.amount;
+                    }
+                    if (!slot.IsEmpty()) usedSlots++;
                 }
             }
         }
 
-        if (moneyVariable != null)
-            moneyVariable.text = (currentMoney + totalInventoryValue).ToString() + " €";
-
-        if (weightVariable != null)
-            weightVariable.text = totalWeight.ToString("0.#") + " / " + maxWeight.ToString("0.#") + " KG";
-
-        if (slotsVariable != null)
-            slotsVariable.text = usedSlots.ToString() + " / " + totalSlots.ToString();
+        if (moneyVariable != null) moneyVariable.text = currentMoney.ToString() + " €";
+        if (weightVariable != null) weightVariable.text = totalWeight.ToString("0.#") + " / " + maxWeight.ToString("0.#") + " KG";
+        if (slotsVariable != null) slotsVariable.text = usedSlots.ToString() + " / " + totalSlots.ToString();
     }
 
     public void SellAllNonWeapons()
     {
         RefreshSlots();
-        foreach (InventorySlot slot in slots)
+        if (slots != null)
         {
-            if (slot != null && slot.isMaster && !slot.IsEmpty() && slot.item != null && !slot.item.isWeapon)
+            foreach (InventorySlot slot in slots)
             {
-                currentMoney += slot.item.value * slot.amount;
-                RemoveItem(slot);
+                if (slot != null && slot.isMaster && !slot.IsEmpty() && slot.item != null && !slot.item.isWeapon)
+                {
+                    currentMoney += slot.item.value * slot.amount;
+                    RemoveItem(slot);
+                }
             }
         }
         UpdateInventoryUI();
     }
 
-    public void UpdateMoney()
-    {
-        UpdateInventoryUI();
-    }
+    public void UpdateMoney() { UpdateInventoryUI(); }
 }

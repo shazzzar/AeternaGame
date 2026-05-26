@@ -32,8 +32,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform _gunTip;
     [SerializeField] private Material _tracerMaterial;
 
+    [Header("Audio")]
+    public AudioClip walkingSound;
+    public AudioClip shootSound;
+    [SerializeField] private float _stepInterval = 0.5f;
+private AudioSource _audioSource;
+    private float _stepTimer;
+
     private Vector3 _input;
-    private bool _isGrounded;
+private bool _isGrounded;
     private bool _hasGun = false;
     private float _nextFireTime = 0f;
 
@@ -42,6 +49,15 @@ public class PlayerController : MonoBehaviour
     private void Start()
     {
         _miningSystem = GetComponent<MiningSystem>();
+
+        _audioSource = GetComponent<AudioSource>();
+        if (_audioSource == null) _audioSource = gameObject.AddComponent<AudioSource>();
+
+        if (PlayerStats.Instance != null)
+{
+            speed = PlayerStats.Instance.speed;
+            damage = PlayerStats.Instance.damage;
+        }
 
         IsWeaponEquipped = _hasGun;
 
@@ -90,10 +106,31 @@ public class PlayerController : MonoBehaviour
         }
 
         Animate();
-    }
+        HandleFootsteps();
+        }
 
-    private void FixedUpdate()
-    {
+        private void HandleFootsteps()
+        {
+            if (_isGrounded && _input.magnitude > 0.1f && !(_miningSystem != null && _miningSystem.isMining))
+            {
+                _stepTimer -= Time.deltaTime;
+                if (_stepTimer <= 0f)
+                {
+                    if (walkingSound != null && _audioSource != null)
+                    {
+                        _audioSource.PlayOneShot(walkingSound);
+                    }
+                    _stepTimer = _stepInterval;
+                }
+            }
+            else
+            {
+                _stepTimer = 0f; // Reset so the first step of a new walk plays immediately
+            }
+        }
+
+        private void FixedUpdate()
+{
         if (_miningSystem != null && _miningSystem.isMining) return;
         Move();
     }
@@ -221,6 +258,11 @@ public class PlayerController : MonoBehaviour
                 _animator.SetTrigger("Shoot");
             }
 
+            if (shootSound != null && _audioSource != null)
+            {
+                _audioSource.PlayOneShot(shootSound);
+            }
+
             ShootRayVisual();
         }
         }
@@ -317,7 +359,9 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateCursorState()
     {
-        if (RoundManager.Instance != null && RoundManager.Instance.isShopPhase)
+        bool isInRoundPauseScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Round_Pause";
+
+        if (isInRoundPauseScene || (RoundManager.Instance != null && RoundManager.Instance.isShopPhase))
         {
             Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
             Cursor.lockState = CursorLockMode.None;
@@ -326,7 +370,7 @@ public class PlayerController : MonoBehaviour
         }
 
         if (InventorySlide.IsInventoryOpen)
-        {
+{
             Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;

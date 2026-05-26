@@ -10,9 +10,23 @@ public class MiningSystem : MonoBehaviour
     private Crystal currentCrystal;
     public bool isMining = false;
     public GameObject pickaxeModel;
+    
+    [Header("Audio")]
+    public AudioClip mineFinishedSound;
+    public AudioClip mineSwingSound;
+    private AudioSource audioSource;
+
+    void Start()
+    {
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+    }
 
     void Update()
-    {
+{
         DetectCrystals();
 
         if (Input.GetKeyDown(KeyCode.E) && currentCrystal != null && !isMining)
@@ -42,6 +56,14 @@ public class MiningSystem : MonoBehaviour
                 currentCrystal.ShowPrompt(false);
                 currentCrystal = null;
             }
+        }
+    }
+
+    public void PlayMiningSwingSound()
+    {
+        if (mineSwingSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(mineSwingSound);
         }
     }
 
@@ -77,12 +99,23 @@ public class MiningSystem : MonoBehaviour
                 transform.rotation = targetRotation;
             }
 
-            float remainingTime = crystalToMine.GetMiningDuration() - 0.3f;
-            if (remainingTime > 0) yield return new WaitForSeconds(remainingTime);
+            float baseDuration = crystalToMine.GetMiningDuration();
+            float multiplier = (PlayerStats.Instance != null) ? PlayerStats.Instance.miningSpeedMultiplier : 1f;
+            float actualDuration = baseDuration / multiplier;
+
+            // The sound is now handled by the Animation Event calling PlayMiningSwingSound()
+            // We just wait for the mining to complete
+            yield return new WaitForSeconds(actualDuration);
 
             if (crystalToMine != null)
+            {
                 crystalToMine.OnMined();
-        }
+                if (mineFinishedSound != null && audioSource != null)
+                {
+                    audioSource.PlayOneShot(mineFinishedSound);
+                }
+            }
+            }
 
         if (playerAnimator != null) playerAnimator.SetBool("isMining", false);
 
