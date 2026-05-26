@@ -581,6 +581,8 @@ MonoBehaviour:
   _renderer: {fileID: 0}
   _flashMaterial: {fileID: 2100000, guid: 6067c6addf770004e9f8c52b2de26945, type: 2}
   _flashDuration: 0.1
+  attackSound: {fileID: 8300000, guid: 71e1e23d229aa4040b0bc909c08bfe18, type: 3}
+  damageSound: {fileID: 8300000, guid: 71e1e23d229aa4040b0bc909c08bfe18, type: 3}
 --- !u!195 &1462581992408354924
 NavMeshAgent:
   m_ObjectHideFlags: 0

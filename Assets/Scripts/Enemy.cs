@@ -22,6 +22,11 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private Material _flashMaterial; // Drag your white/bright material here
     [SerializeField] private float _flashDuration = 0.1f;
 
+    [Header("Audio")]
+    public AudioClip attackSound;
+    public AudioClip damageSound;
+    private AudioSource audioSource;
+
     private Material _originalMaterial;
     private Material[] _originalMaterials;
     private Material[] _flashMaterials;
@@ -29,8 +34,17 @@ public class EnemyAI : MonoBehaviour
 
     void Start()
     {
-        if (player == null)
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
         {
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.spatialBlend = 1f; // 3D sound
+            audioSource.minDistance = 1f;
+            audioSource.maxDistance = 20f;
+        }
+
+        if (player == null)
+{
             GameObject p = GameObject.FindGameObjectWithTag("Player");
             if (p != null) player = p.transform;
             else
@@ -106,6 +120,12 @@ anim = GetComponent<Animator>();
         if (Time.time >= nextAttackTime)
         {
             anim.SetTrigger("attack");
+            
+            if (attackSound != null && audioSource != null)
+            {
+                audioSource.PlayOneShot(attackSound);
+            }
+
             nextAttackTime = Time.time + attackRate;
         }
     }
@@ -138,6 +158,11 @@ anim = GetComponent<Animator>();
     public void TakeDamage(float amount)
     {
         health -= amount;
+
+        if (damageSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(damageSound);
+        }
 
         StopAllCoroutines();
         _flashRoutine = StartCoroutine(FlashRoutine());

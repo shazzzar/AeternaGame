@@ -33,18 +33,15 @@ public class NextRoundBox : MonoBehaviour
     {
         Debug.Log("A avançar para a próxima ronda...");
 
-        // Incrementar ronda
-        RoundManager.Instance.currentRound++;
-
-        // Despausar o jogo
-        Time.timeScale = 1f;
-
-        // Bloquear cursor novamente
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
-        // Carregar a scene do jogo
-        SceneManager.LoadScene(gameplaySceneName);
+        if (RoundManager.Instance != null)
+        {
+            RoundManager.Instance.NextRound();
+        }
+        else
+        {
+            // Fallback if RoundManager is missing
+            SceneManager.LoadScene(gameplaySceneName);
+        }
     }
 
     void OnDrawGizmosSelected()

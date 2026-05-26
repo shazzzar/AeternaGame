@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public enum CrystalRarity { Common, Uncommon, Rare, Epic, Mythic, Ancient, Legendary }
 
@@ -62,6 +62,12 @@ public class Crystal : MonoBehaviour
         }
 
         int amount = GetDropAmount();
+
+        if (PlayerStats.Instance != null && Random.value < PlayerStats.Instance.doubleMineralChance)
+        {
+            amount *= 2;
+            Debug.Log("Double minerals! Chance was: " + PlayerStats.Instance.doubleMineralChance);
+        }
 
         bool addedAny = InventoryManager.Instance.AddItemAmount(item, rarity, amount);
 

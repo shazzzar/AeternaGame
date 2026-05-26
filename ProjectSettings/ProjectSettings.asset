@@ -961,11 +961,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: f3ccd9ad-346e-4a77-8196-62c42bcc703a
+  cloudProjectId: bf50ea1a-fd7a-4f31-8835-19d173248384
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
   projectName: AeternaGame
-  organizationId: jfaria24903
+  organizationId: shazzar004
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

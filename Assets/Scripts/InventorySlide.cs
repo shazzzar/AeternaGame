@@ -21,20 +21,26 @@ public class InventorySlide : MonoBehaviour
     void Start()
     {
         playerController = FindFirstObjectByType<PlayerController>();
+        InitializePanel();
+    }
 
+    public void InitializePanel()
+    {
         if (panel == null)
         {
-            Debug.LogError("InventorySlide: Panel n�o atribu�do!");
-            return;
+            // Try to find it if not assigned
+            GameObject p = GameObject.Find("InventoryPanel");
+            if (p != null) panel = p.GetComponent<RectTransform>();
         }
+
+        if (panel == null) return;
 
         canvasGroup = panel.GetComponent<CanvasGroup>();
         if (canvasGroup == null)
             canvasGroup = panel.gameObject.AddComponent<CanvasGroup>();
 
-        visiblePos = panel.anchoredPosition;
-
-        hiddenPos = visiblePos + new Vector2(hiddenOffsetX, 0f);
+        visiblePos = new Vector2(0, 0); // Assuming right-aligned with pivot at (1, 0.5)
+        hiddenPos = new Vector2(hiddenOffsetX, 0f);
 
         open = false;
         IsInventoryOpen = false;
@@ -51,9 +57,19 @@ public class InventorySlide : MonoBehaviour
 
     void Update()
     {
-        if (panel == null) return;
+        if (panel == null)
+        {
+            // If we lost the panel (scene transition), try to find it
+            GameObject p = GameObject.Find("InventoryPanel");
+            if (p != null) 
+            {
+                panel = p.GetComponent<RectTransform>();
+                InitializePanel();
+            }
+            if (panel == null) return;
+        }
 
-        if (Input.GetKeyDown(KeyCode.I) && Time.timeScale > 0) 
+        if (Input.GetKeyDown(KeyCode.I)) 
         {
             ToggleInventory(!open);
         }
@@ -66,11 +82,14 @@ public class InventorySlide : MonoBehaviour
             Time.unscaledDeltaTime * speed
         );
 
-        canvasGroup.alpha = Mathf.Lerp(
-            canvasGroup.alpha,
-            open ? 1f : 0f,
-            Time.unscaledDeltaTime * speed
-        );
+        if (canvasGroup != null)
+        {
+            canvasGroup.alpha = Mathf.Lerp(
+                canvasGroup.alpha,
+                open ? 1f : 0f,
+                Time.unscaledDeltaTime * speed
+            );
+        }
     }
 
     public void ToggleInventory(bool state)
@@ -78,15 +97,20 @@ public class InventorySlide : MonoBehaviour
         open = state;
         IsInventoryOpen = open;
 
-        canvasGroup.interactable = open;
-        canvasGroup.blocksRaycasts = open;
+        if (canvasGroup != null)
+        {
+            canvasGroup.interactable = open;
+            canvasGroup.blocksRaycasts = open;
+        }
 
         UpdateCursorState();
     }
 
     void UpdateCursorState()
-{
-        if (open)
+    {
+        bool isShopScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Round_Pause";
+
+        if (open || isShopScene)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
