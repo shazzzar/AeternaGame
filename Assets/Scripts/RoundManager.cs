@@ -27,6 +27,9 @@ public class RoundManager : MonoBehaviour
     public float spawnMargin = 10f; // Stay away from borders
     public float earlyRoundRadius = 50f; // Radius around player for early rounds
 
+    [Header("Map Pool")]
+    public List<string> mapPool = new List<string> { "SampleScene", "Socalcos", "Swamp" };
+
     private float timer;
     private List<GameObject> activeEnemies = new List<GameObject>();
     private List<GameObject> activeMinerals = new List<GameObject>();
@@ -84,7 +87,7 @@ public class RoundManager : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == "SampleScene" && Instance == this)
+        if (mapPool.Contains(scene.name) && Instance == this)
         {
             StartRound();
         }
@@ -93,7 +96,7 @@ public class RoundManager : MonoBehaviour
     void Start()
     {
         // Initial start
-        if (Instance == this && SceneManager.GetActiveScene().name == "SampleScene")
+        if (Instance == this && mapPool.Contains(SceneManager.GetActiveScene().name))
         {
             StartRound();
         }
@@ -227,7 +230,20 @@ public class RoundManager : MonoBehaviour
         {
             InventoryManager.Instance.SaveInventoryState();
         }
-        SceneManager.LoadScene("SampleScene");
+
+        // Logic: when changing map the previous map enters the next map pool
+        // This effectively means we pick a random map from the pool that is NOT the current one.
+        string currentMap = SceneManager.GetActiveScene().name;
+        List<string> nextPossibleMaps = new List<string>(mapPool);
+        
+        // Remove current map to ensure we change maps
+        if (nextPossibleMaps.Count > 1)
+        {
+            nextPossibleMaps.Remove(currentMap);
+        }
+
+        string chosenMap = nextPossibleMaps[Random.Range(0, nextPossibleMaps.Count)];
+        SceneManager.LoadScene(chosenMap);
     }
 
     void SpawnRoundEntities()
