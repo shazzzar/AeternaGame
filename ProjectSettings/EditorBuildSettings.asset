@@ -11,5 +11,11 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Round_Pause.unity
     guid: c14782a88524d4647abb2b2a92b623b9
+  - enabled: 1
+    path: Assets/Scenes/Socalcos.unity
+    guid: 1cee7837397609441820a5df66e02070
+  - enabled: 1
+    path: Assets/Scenes/Swamp.unity
+    guid: 3d93eba89971e394abe5e2560ec83ecf
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
