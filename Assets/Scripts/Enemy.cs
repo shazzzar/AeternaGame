@@ -75,9 +75,9 @@ anim = GetComponent<Animator>();
 
     void Update()
     {
+        if (player == null || agent == null || !agent.isActiveAndEnabled || !agent.isOnNavMesh) return;
+
         float distance = Vector3.Distance(player.position, transform.position);
-
-
 
         if (distance <= attackRange)
         {
@@ -100,6 +100,7 @@ anim = GetComponent<Animator>();
 
     void ChasePlayer()
     {
+        if (!agent.isOnNavMesh) return;
         agent.isStopped = false;
         agent.SetDestination(player.position);
         anim.SetBool("isWalking", true);
@@ -107,6 +108,7 @@ anim = GetComponent<Animator>();
 
     void StopChasing()
     {
+        if (!agent.isOnNavMesh) return;
         agent.isStopped = true;
         anim.SetBool("isWalking", false);
     }
@@ -114,6 +116,7 @@ anim = GetComponent<Animator>();
     // This just starts the animation
     void AttackPlayer()
     {
+        if (!agent.isOnNavMesh) return;
         agent.isStopped = true;
         anim.SetBool("isWalking", false);
 
@@ -133,6 +136,7 @@ anim = GetComponent<Animator>();
     // This is called by the ANIMATION EVENT at the end of the swing/bite
     public void DealDamage()
     {
+        if (player == null) return;
         float distance = Vector3.Distance(player.position, transform.position);
 
         // Double check the player is still in range when the hit actually lands
@@ -145,14 +149,20 @@ anim = GetComponent<Animator>();
     // Call this at the very beginning of the attack animation
     public void StartAttack()
     {
-        agent.isStopped = true;
-        agent.velocity = Vector3.zero; // Stops any sliding momentum
+        if (agent != null && agent.isActiveAndEnabled && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero; // Stops any sliding momentum
+        }
     }
 
     // Call this at the very end of the attack animation
     public void EndAttack()
     {
-        agent.isStopped = false;
+        if (agent != null && agent.isActiveAndEnabled && agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+        }
     }
 
     public void TakeDamage(float amount)

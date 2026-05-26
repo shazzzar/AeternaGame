@@ -74,7 +74,7 @@ private bool _isGrounded;
 
         HandleWeaponToggle();
 
-        bool isUIOpen = InventorySlide.IsInventoryOpen || (RoundManager.Instance != null && RoundManager.Instance.isShopPhase);
+        bool isUIOpen = InventorySlide.IsInventoryOpen || (RoundManager.Instance != null && RoundManager.Instance.isShopPhase) || PauseMenu.IsPaused;
 
         if (_hasGun && !isUIOpen)
         {
@@ -361,7 +361,7 @@ private bool _isGrounded;
     {
         bool isInRoundPauseScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Round_Pause";
 
-        if (isInRoundPauseScene || (RoundManager.Instance != null && RoundManager.Instance.isShopPhase))
+        if (PauseMenu.IsPaused || isInRoundPauseScene || (RoundManager.Instance != null && RoundManager.Instance.isShopPhase))
         {
             Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
             Cursor.lockState = CursorLockMode.None;

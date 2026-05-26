@@ -19,6 +19,7 @@ public class RoundManager : MonoBehaviour
     public TMP_Text roundText;
     public GameObject shopPanel;
     public GameObject winPanel;
+    public GameObject pausePanel;
     public GameObject hudParent; // Optional: Assign a parent for all HUD elements
 
     [Header("Spawning")]
@@ -52,8 +53,9 @@ public class RoundManager : MonoBehaviour
             Instance.roundText = this.roundText;
             Instance.shopPanel = this.shopPanel;
             Instance.winPanel = this.winPanel;
+            Instance.pausePanel = this.pausePanel;
             Instance.hudParent = this.hudParent;
-            
+
             // Also sync current state if needed (though usually Instance is the source of truth)
             
             Destroy(gameObject);
@@ -133,9 +135,25 @@ public class RoundManager : MonoBehaviour
         // Respawn player
         if (playerTransform != null)
         {
+            string sceneName = SceneManager.GetActiveScene().name;
+            Vector3 spawnPos = playerInitialPosition;
+
+            if (sceneName == "Socalcos")
+                spawnPos = new Vector3(456.5f, 55f, 280.899994f);
+            else if (sceneName == "Swamp")
+                spawnPos = new Vector3(137f, 55.0999985f, 166.600006f);
+
             // Reset position and rotation
-            playerTransform.position = playerInitialPosition;
+            playerTransform.position = spawnPos;
             playerTransform.rotation = playerInitialRotation;
+
+            // Reset Rigidbody velocity to prevent sliding after teleport
+            Rigidbody rb = playerTransform.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
             
             // Also heal the player if they have health component
             PlayerHealth health = playerTransform.GetComponent<PlayerHealth>();
@@ -391,6 +409,21 @@ public class RoundManager : MonoBehaviour
 
             if (validPos)
             {
+                if (isEnemy)
+                {
+                    // Snap to NavMesh for enemies
+                    UnityEngine.AI.NavMeshHit hit;
+                    if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out hit, 5.0f, UnityEngine.AI.NavMesh.AllAreas))
+                    {
+                        spawnPos = hit.position;
+                    }
+                    else
+                    {
+                        // If no NavMesh found nearby, we might want to skip spawning this enemy or at least log it
+                        Debug.LogWarning("Enemy spawned far from NavMesh at: " + spawnPos);
+                    }
+                }
+
                 GameObject obj = Instantiate(prefab, spawnPos, Quaternion.Euler(0, Random.Range(0, 360), 0));
                 
                 if (isEnemy)
