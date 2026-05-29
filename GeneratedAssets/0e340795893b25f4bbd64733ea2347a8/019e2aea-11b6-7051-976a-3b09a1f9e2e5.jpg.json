@@ -1,0 +1,28 @@
+{
+    "asset": "0e340795893b25f4bbd64733ea2347a8",
+    "fileName": "019e2aea-11b6-7051-976a-3b09a1f9e2e5.jpg",
+    "prompt": "A simple bright yellow arrow icon for a mini-map, top-down view, casual cartoon style, vibrant colors, game badge",
+    "negativePrompt": "",
+    "model": "game-ui-essentials-2",
+    "modelName": "Game UI Essentials 2.0",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 2048,
+        "height": 2048
+    },
+    "spriteSheet": false,
+    "duration": 0.0
+}
