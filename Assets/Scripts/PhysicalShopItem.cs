@@ -83,8 +83,8 @@ public class PhysicalShopItem : MonoBehaviour
             case ShopItemType.Weapon:
                 if (PlayerStats.Instance != null && PlayerStats.Instance.hasBoughtFirstWeapon)
                 {
-                    text = "Buy Chance for Double Mineral (+1%)";
-                    price = ShopManager.Instance.doubleMineralUpgradePrice;
+                    text = "+10 weapon damage";
+                    price = ShopManager.Instance.weaponDamageUpgradePrice;
                 }
                 else
                 {

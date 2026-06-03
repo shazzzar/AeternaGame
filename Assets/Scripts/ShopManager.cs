@@ -13,6 +13,10 @@ public class ShopManager : MonoBehaviour
     public int miningSpeedUpgradePrice = 100;
     public int doubleMineralUpgradePrice = 150;
 
+    [Header("Weapon Slot Follow-up Upgrade")]
+    public int weaponDamageUpgradePrice = 150;
+    public float weaponDamageUpgradeAmount = 10f;
+
     [Header("References")]
     public Item weaponItem; // The weapon item to give to the player
 
@@ -35,8 +39,8 @@ public class ShopManager : MonoBehaviour
         Debug.Log("ShopManager: BuyWeapon called.");
         if (PlayerStats.Instance != null && PlayerStats.Instance.hasBoughtFirstWeapon)
         {
-            Debug.Log("ShopManager: Player already has first weapon, upgrading double mineral instead.");
-            BuyDoubleMineralChance();
+            Debug.Log("ShopManager: Player already has first weapon, applying weapon damage upgrade instead.");
+            BuyWeaponDamageUpgrade();
             return;
         }
 
@@ -71,6 +75,35 @@ public class ShopManager : MonoBehaviour
         else
         {
             Debug.LogWarning($"ShopManager: Not enough money! Need {weaponPrice}, have {InventoryManager.Instance.currentMoney}");
+        }
+    }
+
+    public void BuyWeaponDamageUpgrade()
+    {
+        if (InventoryManager.Instance == null) return;
+
+        if (InventoryManager.Instance.currentMoney >= weaponDamageUpgradePrice)
+        {
+            InventoryManager.Instance.currentMoney -= weaponDamageUpgradePrice;
+
+            if (PlayerStats.Instance != null)
+            {
+                PlayerStats.Instance.damage += weaponDamageUpgradeAmount;
+            }
+
+            PlayerController player = Object.FindAnyObjectByType<PlayerController>();
+            if (player != null)
+            {
+                player.damage = PlayerStats.Instance != null ? PlayerStats.Instance.damage : player.damage + weaponDamageUpgradeAmount;
+            }
+
+            InventoryManager.Instance.UpdateInventoryUI();
+            PlayBuySound();
+            Debug.Log($"Weapon damage upgraded (+{weaponDamageUpgradeAmount})!");
+        }
+        else
+        {
+            Debug.LogWarning($"ShopManager: Not enough money for weapon damage upgrade! Need {weaponDamageUpgradePrice}");
         }
     }
 

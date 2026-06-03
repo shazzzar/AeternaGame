@@ -241,12 +241,25 @@ public class RoundManager : MonoBehaviour
     }
 
 
+    [Header("Boss Round")]
+    public string bossSceneName = "Boss";
+
     public void NextRound()
     {
         currentRound++;
         if (InventoryManager.Instance != null)
         {
             InventoryManager.Instance.SaveInventoryState();
+        }
+
+        // After the final round's shop, load the Boss scene instead of another map.
+        if (currentRound > maxRounds)
+        {
+            Debug.Log("Final round complete - loading Boss scene: " + bossSceneName);
+            isShopPhase = false;
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(bossSceneName);
+            return;
         }
 
         // Logic: when changing map the previous map enters the next map pool
