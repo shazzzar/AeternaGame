@@ -942,7 +942,13 @@ PlayerSettings:
   XboxOneOverrideIdentityName: 
   XboxOneOverrideIdentityPublisher: 
   vrEditorSettings: {}
-  cloudServicesEnabled: {}
+  cloudServicesEnabled:
+    Build: 0
+    Game Performance: 0
+    Legacy Analytics: 0
+    Purchasing: 0
+    UDP: 0
+    Unity Ads: 0
   luminIcon:
     m_Name: 
     m_ModelFolderPath: 
@@ -964,11 +970,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: f3ccd9ad-346e-4a77-8196-62c42bcc703a
+  cloudProjectId: 073f4329-f3bc-4ec3-bd0c-4a6c56b486e6
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
   projectName: AeternaGame
-  organizationId: jfaria24903
+  organizationId: shazzarsdasdasda
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}
